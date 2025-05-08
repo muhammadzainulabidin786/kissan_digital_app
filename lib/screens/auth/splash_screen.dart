@@ -149,7 +149,7 @@ class _SplashScreenState extends State<SplashScreen> {
             scale: 1.3,
             child: Opacity(
               opacity: 0.9,
-              child: Image.asset('assets/images/farmer_logo.png', height: 500),
+              child: Image.asset('assets/images/farmer_logo.png', height: 300),
             ),
           ),
         ),

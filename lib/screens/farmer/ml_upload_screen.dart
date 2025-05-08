@@ -81,17 +81,22 @@ class _MLUploadScreenState extends State<MLUploadScreen> {
                 minimumSize: const Size(double.infinity, 50),
                 backgroundColor: Colors.green,
               ),
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Analyze',
-                      style: TextStyle(color: Colors.white)),
+              child:
+                  isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                        'Analyze',
+                        style: TextStyle(color: Colors.white),
+                      ),
             ),
             const SizedBox(height: 20),
             if (_result != null)
               Text(
                 _result!,
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
           ],
         ),
