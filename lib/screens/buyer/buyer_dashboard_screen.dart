@@ -1,4 +1,358 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:kissap_digital_app_test/services/firebase_service.dart';
+import 'seller_list_screen.dart'; // Add this import
+import 'graph_screen.dart';
+
+class BuyerDashboardScreen extends StatefulWidget {
+  const BuyerDashboardScreen({super.key});
+
+  @override
+  State<BuyerDashboardScreen> createState() => _BuyerDashboardScreenState();
+}
+
+class _BuyerDashboardScreenState extends State<BuyerDashboardScreen> {
+  int _selectedIndex = 0;
+  final FirebaseService _firebaseService = FirebaseService();
+
+  static final List<Widget> _widgetOptions = <Widget>[
+    const CottonQualityDataScreen(),
+    GraphScreen(),
+    const SellerListScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFCFFFDC),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        backgroundColor: Colors.green.shade700,
+      ),
+      body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assessment),
+            label: 'Quality',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Graph'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Sellers'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.green.shade700,
+        unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
+      ),
+    );
+  }
+}
+
+class CottonQualityDataScreen extends StatelessWidget {
+  const CottonQualityDataScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const _SectionTitle(title: 'Dashboard'),
+          const SizedBox(height: 8.0),
+          const _GreetingText(text: 'Hello 👋,'),
+          const SizedBox(height: 20.0),
+          _buildQualityCards(),
+          const SizedBox(height: 20.0),
+          const _SectionTitle(title: 'Total Quantity and Quality'),
+          const SizedBox(height: 8.0),
+          const _SectionSubtitle(
+            text: 'List of the province with respect to quality and quantity',
+          ),
+          const SizedBox(height: 12.0),
+          _buildDataTable(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQualityCards() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseService().getDistrictAggregationData(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const Text('Error loading data');
+        if (!snapshot.hasData) return const CircularProgressIndicator();
+
+        final data = snapshot.data!.docs;
+
+        return Column(
+          children:
+              _chunkList(data, 2).map((pair) {
+                return Row(
+                  children:
+                      pair.map((doc) {
+                        final districtData = doc.data() as Map<String, dynamic>;
+                        return Expanded(
+                          child: _DistrictQualityCard(
+                            district: districtData['district'] ?? 'N/A',
+                            quality:
+                                districtData['average_quality']?.toInt() ?? 0,
+                          ),
+                        );
+                      }).toList(),
+                );
+              }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildDataTable() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseService().getDistrictAggregationData(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const CircularProgressIndicator();
+
+        final districts = snapshot.data!.docs;
+
+        return Column(
+          children: [
+            const _DataTableHeader(),
+            ...districts.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return _DataTableRow(
+                district: data['district'] ?? 'N/A',
+                quantity: data['total_quantity']?.toInt() ?? 0,
+                quality: data['average_quality']?.toInt() ?? 0,
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  List<List<QueryDocumentSnapshot>> _chunkList(
+    List<QueryDocumentSnapshot> list,
+    int chunkSize,
+  ) {
+    List<List<QueryDocumentSnapshot>> chunks = [];
+    for (var i = 0; i < list.length; i += chunkSize) {
+      chunks.add(
+        list.sublist(
+          i,
+          i + chunkSize > list.length ? list.length : i + chunkSize,
+        ),
+      );
+    }
+    return chunks;
+  }
+}
+
+// Original UI components remain unchanged below this point
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 24.0,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
+      ),
+    );
+  }
+}
+
+class _GreetingText extends StatelessWidget {
+  final String text;
+  const _GreetingText({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 18.0, color: Colors.black87),
+    );
+  }
+}
+
+class _DistrictQualityCard extends StatelessWidget {
+  final String district;
+  final int quality;
+  const _DistrictQualityCard({required this.district, required this.quality});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            '$quality%',
+            style: const TextStyle(
+              fontSize: 20.0,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            district,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionSubtitle extends StatelessWidget {
+  final String text;
+  const _SectionSubtitle({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(color: Colors.black54, fontSize: 14),
+    );
+  }
+}
+
+class _DataTableHeader extends StatelessWidget {
+  const _DataTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          SizedBox(width: 24),
+          Expanded(
+            child: Text(
+              'Province',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'Weight in KG',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'Quality',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DataTableRow extends StatelessWidget {
+  final String district;
+  final int quantity;
+  final int quality;
+
+  const _DataTableRow({
+    required this.district,
+    required this.quantity,
+    required this.quality,
+  });
+
+  Color get _indicatorColor {
+    switch (district.toLowerCase()) {
+      case 'badin':
+        return Colors.pink;
+      case 'mirpurkhas':
+        return Colors.green;
+      case 'khairpur':
+        return Colors.yellow;
+      case 'sukkur':
+        return Colors.purple;
+      case 'shikarpur':
+        return Colors.indigo;
+      case 'thatha':
+        return Colors.cyan;
+      case 'hyderabad':
+        return Colors.orange;
+      case 'sanghar':
+        return Colors.lime;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          CircleAvatar(backgroundColor: _indicatorColor, radius: 8),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              district,
+              style: const TextStyle(color: Colors.black87),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '$quantity kg',
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '$quality%',
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/*
+import 'package:flutter/material.dart';
 import 'graph_screen.dart';
 import './seller_list_screen.dart';
 
@@ -63,7 +417,7 @@ class CottonQualityDataScreen extends StatelessWidget {
         children: <Widget>[
           const _SectionTitle(title: 'Dashboard'),
           const SizedBox(height: 8.0),
-          const _GreetingText(text: 'Hello Ghulam Ali 👋,'),
+          const _GreetingText(text: 'Hello 👋,'),
           const SizedBox(height: 20.0),
           _buildQualityCards(),
           const SizedBox(height: 20.0),
@@ -325,6 +679,7 @@ class _DataTableRow extends StatelessWidget {
   }
 }
 
+
 /*
 // 📁 lib/screens/buyer/buyer_dashboard_screen.dart
 // ✅ Purpose: Buyer can view all available crops uploaded by farmers.
@@ -388,4 +743,5 @@ class BuyerDashboardScreen extends StatelessWidget {
     );
   }
 }
+*/
 */
